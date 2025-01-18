@@ -1,0 +1,28 @@
+[package]
+name = "fast-array"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "*", optional = true }
+# std = { version = "*", features = ["simd"] }
+
+[profile.test]
+codegen-units = 1
+lto = true
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+
+[features]
+serde = ["dep:serde"]
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "benchmark"
+harness = false
