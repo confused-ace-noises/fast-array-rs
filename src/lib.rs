@@ -1,4 +1,5 @@
-#![cfg_attr(feature = "nightly", feature(portable_simd, step_trait))]
+#![cfg_attr(feature = "nightly", feature(step_trait))]
+#![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
 
 #![allow(soft_unstable)]
 

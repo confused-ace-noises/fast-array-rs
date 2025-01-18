@@ -28,7 +28,7 @@ macro_rules! fast_arr {
                 // fast_arr = FastArray::<$type>::new_empty(count!($($val),+));
                 fast_arr = FastArray::<$type>::new_empty(<[()]>::len(&[
                     $(
-                        useless_fn(&$val),
+                        {let _ = &$val; ()},
                     )+
                 ]));
 
@@ -66,7 +66,7 @@ macro_rules! fast_arr {
 
             unsafe {
                 // fast_arr = FastArray::new_empty(count!($($val),+));
-                fast_arr = FastArray::new_empty(<[()]>::len(&[$(useless_fn(&$val)),+]));
+                fast_arr = FastArray::new_empty(<[()]>::len(&[$({let _ = &$val; ()}),+]));
             }
 
             let mut index = 0;
