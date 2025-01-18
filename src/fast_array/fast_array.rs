@@ -104,6 +104,8 @@ impl<T: Clone> FastArray<T> {
     /// 
     /// ## Example 
     /// ```
+    /// use fast_array::FastArray;
+    ///
     /// let fast_arr = FastArray::new(3, 5);
     /// 
     /// assert_eq!(fast_arr.to_string(), "[5, 5, 5]");

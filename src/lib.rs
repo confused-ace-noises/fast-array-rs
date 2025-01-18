@@ -10,3 +10,4 @@ pub mod macros;
 pub mod prelude;
 
 pub use fast_array::fast_array::FastArray;
+pub use fast_iterator::fast_iterator::FastIterator;
