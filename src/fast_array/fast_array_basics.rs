@@ -62,7 +62,7 @@ impl<T: Ord> FastArray<T> {
     ///
     /// let mut array = fast_arr!(3,5,1,4,2);
     /// array.sort();
-    /// assert_eq!(array.to_string(), fast_arr!(5,4,3,2,1).to_string());
+    /// assert_eq!(array.to_string(), fast_arr!(1,2,3,4,5).to_string());
     /// ```
     pub fn sort(&mut self) {
         quicksort(self);
