@@ -1,5 +1,5 @@
 use core::slice;
-use std::{arch::x86_64::{_mm_prefetch, _MM_HINT_T0}, cmp::Ordering, ops::AddAssign, simd::{f32x4, f32x8, Simd, SimdElement}};
+use std::cmp::Ordering;
 
 use crate::{fast_array::fast_array::FastArray, fast_iterator::fast_iterator::FastIterator};
 // use serde::{de::Visitor, ser::SerializeSeq, Deserialize, Serialize};
@@ -241,6 +241,8 @@ impl<T> From<Vec<T>> for FastArray<T> {
 }
 
 #[cfg(feature = "serde")]
+use std::marker::PhantomData;
+#[cfg(feature = "serde")]
 impl<T: serde::Serialize> serde::Serialize for FastArray<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -330,111 +332,6 @@ impl<T: Clone> From<&[T]> for FastArray<T> {
         
 //     }
 // }
-
-impl<T> FastArray<T>
-where
-    T: SimdElement + Copy + std::ops::Add<Output = T> + AddAssign,  // Ensure T supports addition
-    Simd<T, 4>: std::ops::Add<Output = Simd<T, 4>>,     // Ensure SIMD type supports addition
-{
-    #[inline(always)]
-    pub fn simd_add(&mut self, other: T) {
-        let len = self.size;
-        type WideSimd<T> = Simd<T, 4>;
-        let lanes = WideSimd::<T>::LEN;
-        let mut i = 0;
-
-        // 🔥 New: Align pointer before SIMD processing
-        while i < len && (unsafe { self.pointer.add(i) } as usize) % std::mem::align_of::<WideSimd<T>>() != 0 {
-            unsafe {
-                *self.pointer.add(i) += other;
-            }
-            i += 1;
-        }
-
-        // 🔥 SIMD Processing
-        while i + lanes <= len {
-            unsafe {
-                _mm_prefetch(self.pointer.add(i + 64) as *const i8, _MM_HINT_T0);
-                let av = *(self.pointer.add(i) as *const WideSimd<T>);
-                            let bv = WideSimd::splat(other);
-                            let result = av + bv;
-                            *(self.pointer.add(i) as *mut WideSimd<T>) = result; // SIMD store
-            }
-            i += lanes;
-        }
-
-        // 🔥 Scalar cleanup (if remainder exists)
-        while i < len {
-            unsafe {
-                *self.pointer.add(i) += other;
-            }
-            i += 1;
-        }
-    }
-
-    // #[inline(always)]
-    // pub fn simd_add(&mut self, other: T) {
-    //     assert_eq!((self.pointer as usize) % 32, 0, "Pointer self is not 32-byte aligned!");
-    //     // assert_eq!((other.pointer as usize) % 32, 0, "Pointer other is not 32-byte aligned!");
-    //     // assert_eq!(self.size, other.size, "Arrays must have the same size!");
-    //     let len = self.size;
-
-    //     type WideSimd<T> = Simd<T, 8>; // Use a fixed SIMD width
-    //     let lanes = WideSimd::<T>::LEN;
-    //     let mut i = 0;
-
-    //     while i + lanes <= len {
-    //         unsafe {
-    //             // let av = WideSimd::from_slice(std::slice::from_raw_parts(self.pointer.add(i), lanes));
-    //             let av = *(self.pointer.add(i) as *const WideSimd<T>);
-    //             let bv = WideSimd::splat(other);
-    //             let result = av + bv; // Now this compiles because T supports addition
-    //             // result.copy_to_slice(std::slice::from_raw_parts_mut(self.pointer.add(i), lanes));
-    //             *(self.pointer.add(i) as *mut WideSimd<T>) = result; // Aligned SIMD store
-    //             // result.store_select(slice, enable);
-    //         }
-    //         i += lanes;
-    //     }
-
-    //     // Handle remaining scalar elements
-    //     while i < len {
-    //         unsafe {
-    //             *self.pointer.add(i) = *self.pointer.add(i) + other;
-    //         }
-    //         i += 1;
-    //     }
-    // }
-    
-    pub fn simd_add_array(&mut self, other: &FastArray<T>) {
-        // assert_eq!((self.pointer as usize) % 32, 0, "Pointer self is not 32-byte aligned!");
-        // assert_eq!((other.pointer as usize) % 32, 0, "Pointer other is not 32-byte aligned!");
-        assert_eq!(self.size, other.size, "Arrays must have the same size!");
-        let len = self.size;
-
-        type WideSimd<T> = Simd<T, 4>; // Use a fixed SIMD width
-        let lanes = WideSimd::<T>::LEN;
-        let mut i = 0;
-
-        while i + lanes <= len {
-            unsafe {
-                let av = WideSimd::from_slice(std::slice::from_raw_parts(self.pointer.add(i), lanes));
-                let bv = WideSimd::from_slice(std::slice::from_raw_parts(other.pointer.add(i), lanes));
-                let result = av + bv; // Now this compiles because T supports addition
-                // result.copy_to_slice(std::slice::from_raw_parts_mut(self.pointer.add(i), lanes));
-                *(self.pointer.add(i) as *mut WideSimd<T>) = result; // Aligned SIMD store
-            }
-            i += lanes;
-        }
-
-        // Handle remaining scalar elements
-        while i < len {
-            unsafe {
-                *self.pointer.add(i) = *self.pointer.add(i) + *other.pointer.add(i);
-            }
-            i += 1;
-        }
-    }
-}
 
 // #[test]
 fn test() {

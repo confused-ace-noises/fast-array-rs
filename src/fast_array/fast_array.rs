@@ -2,12 +2,11 @@ use std::alloc::{alloc, dealloc, Layout};
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{empty, BufReader, Read};
-use std::iter::Step;
 use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 use std::{ptr, thread};
-use std::ops::{Index, IndexMut, Sub};
-use std::simd::{Simd, SimdElement};
+use std::ops::{Index, IndexMut};
+// use crate::create_unchecked_doc;
 use crate::fast_array::fast_array_basics::AsFastArray;
 use crate::fast_iterator::fast_iterator::FastIterator;
 
@@ -45,10 +44,40 @@ impl<T: Default> FastArray<T> {
     /// 
     /// ## Panics
     /// panics if len == 0.
+    #[inline]
     pub fn new_default(len: usize) -> FastArray<T> {
-        assert!(len != 0);
+        assert!(len != 0, "len cannot be 0!");
 
-        let layout = Layout::array::<T>(len).expect("failed to create layout");
+        // let layout = Layout::array::<T>(len).expect("failed to create layout");
+        let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32).expect("failed to create layout");
+
+        let raw_ptr = unsafe {
+            alloc(layout) as *mut T
+        };
+
+        if raw_ptr.is_null() { panic!("Memory alloc failed.") };
+
+        unsafe {
+            for i in 0..len {
+                raw_ptr.add(i).write(T::default());
+            };
+        };
+
+        FastArray {
+            pointer: raw_ptr,
+            size: len,
+        }
+    }
+
+    #[inline]
+    /// ## Info 
+    /// same as [`FastArray::new_default`], just doesn't check for `len != 0` for performance reasons.
+    /// obviously, if the len *is* 0, it's undefined behavior. 
+    pub unsafe fn new_default_unchecked(len: usize) -> FastArray<T> {
+        // assert!(len != 0);
+
+        // let layout = Layout::array::<T>(len).expect("failed to create layout");
+        let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32).expect("failed to create layout");
 
         let raw_ptr = unsafe {
             alloc(layout) as *mut T
@@ -69,63 +98,6 @@ impl<T: Default> FastArray<T> {
     }
 }
 
-impl<T: Copy> FastArray<T> {
-    pub fn new_fast(len: usize, fill_value: T) -> FastArray<T> {
-        assert!(len != 0);
-
-        // let layout = Layout::array::<T>(len).expect("failed to create layout");
-        let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32)
-            .expect("Failed to create layout");
-
-        let raw_ptr = unsafe {
-            alloc(layout) as *mut T
-        };
-
-        if raw_ptr.is_null() { panic!("Memory alloc failed.") };
-
-        unsafe {
-            for i in 0..len {
-                raw_ptr.add(i).write(fill_value);
-            };
-        };
-
-        FastArray {
-            pointer: raw_ptr,
-            size: len,
-        }
-    }
-}
-
-// impl<T: Step+std::fmt::Debug> FastArray<T> {
-//     pub fn new_range(start: T, end: T, step: usize) -> FastArray<T> {
-//         assert_ne!(start, end);
-
-//     }
-// }
-impl<T: Step + std::fmt::Debug + Copy> FastArray<T> {
-    pub fn new_range(start: T, end: T) -> FastArray<T> {
-        assert_ne!(start, end, "Start and end must not be equal!");
-        // assert_ne!(step, T::forward(start, 0), "Step size cannot be zero!");
-
-        let (_ , Some(len)) = T::steps_between(&start, &end) else {
-            panic!("only known steps in-between are allowed")
-        };
-
-        let mut empty_arr = unsafe { FastArray::<T>::new_empty(len) };
-
-        let mut value = start;
-        let mut index = 0;
-        while &value < &end {
-            empty_arr[index] = value;
-            value = T::forward(value, 1);
-            index+=1;
-        }
-
-        empty_arr
-    }
-}
-
-
 impl<T: Clone> FastArray<T> {
     /// ## Info
     /// creates a new [`FastArray`] of the given len and fills it with the given fill_value.
@@ -142,6 +114,36 @@ impl<T: Clone> FastArray<T> {
     #[inline(always)]
     pub fn new(len: usize, fill_value: T) -> FastArray<T> {
         assert!(len != 0);
+
+        // let layout = Layout::array::<T>(len).expect("failed to create layout");
+        let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32)
+            .expect("Failed to create layout");
+
+
+        let raw_ptr = unsafe {
+            alloc(layout) as *mut T
+        };
+
+        if raw_ptr.is_null() { panic!("Memory alloc failed.") };
+
+        unsafe {
+            for i in 0..len {
+                raw_ptr.add(i).write(fill_value.clone());
+            };
+        };
+
+        FastArray {
+            pointer: raw_ptr,
+            size: len,
+        }
+    }
+
+    #[inline(always)]
+    /// ## Info
+    /// same functionality as [`FastArray::new`], just skips the `len != 0` check for performance reasons.
+    /// if `len == 0`, using this method is undefined behavior.
+    pub unsafe fn new_unchecked(len: usize, fill_value: T) -> FastArray<T> {
+        // assert!(len != 0);
 
         // let layout = Layout::array::<T>(len).expect("failed to create layout");
         let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32)
@@ -277,6 +279,38 @@ impl<T> FastArray<T> {
         }
     }
 
+    /// ## Info
+    /// same functionality as [`FastArray::new_func`], just skips the `len != 0` check for performance reasons.
+    /// if `len == 0`, using this function is undefined behavior
+    pub unsafe fn new_func_unchecked<F>(len: usize, mut func: F) -> FastArray<T> 
+    where 
+        F: FnMut () -> T,
+    {
+        // assert!(len != 0);
+
+        // let layout = Layout::array::<T>(len).expect("failed to create layout");
+        let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32)
+            .expect("Failed to create layout");
+
+
+        let raw_ptr = unsafe {
+            alloc(layout) as *mut T
+        };
+
+        if raw_ptr.is_null() { panic!("Memory alloc failed.") };
+
+        unsafe {
+            for i in 0..len {
+                raw_ptr.add(i).write(func());
+            };
+        };
+
+        FastArray {
+            pointer: raw_ptr,
+            size: len,
+        }
+    }
+
     #[inline(always)]
     /// ## Info
     /// makes a new empty [`FastArray`].
@@ -285,6 +319,28 @@ impl<T> FastArray<T> {
     /// every element of this array will be a null pointer when read if you don't write it first, so use with caution.
     pub unsafe fn new_empty(len: usize) -> FastArray<T> {
         assert!(len != 0);
+
+        let layout = Layout::array::<T>(len).expect("failed to create layout");
+
+        let raw_ptr = unsafe {
+            alloc(layout) as *mut T
+        };
+
+        if raw_ptr.is_null() { panic!("Memory alloc failed.") };
+
+        FastArray {
+            pointer: raw_ptr,
+            size: len,
+        }
+    }
+
+
+    /// ## Info
+    /// this method has the same functionality as [`FastArray::new_empty`], but skips the `len != 0` check for performance reasons.
+    /// 
+    /// If `len == 0`, using this method becomes undefined behavior
+    pub unsafe fn new_empty_unchecked(len: usize) -> FastArray<T> {
+        // assert!(len != 0);
 
         let layout = Layout::array::<T>(len).expect("failed to create layout");
 
@@ -324,6 +380,22 @@ impl<T> FastArray<T> {
 
         let pointer1 = self.get_mut_pointer(index1);
         let pointer2 = self.get_mut_pointer(index2);
+
+        unsafe {
+            ptr::swap(pointer1, pointer2);
+        }
+    }
+
+
+    /// ## Info
+    /// this method has the same functionality as [`FastArray::swap`], but skips the `self.len() > index1 && self.len() > index2` check for performance reasons.
+    /// 
+    /// If `self.len() > index1 && self.len() > index2` isn't respected, using this method becomes undefined behavior
+    pub unsafe fn swap_unchecked(&mut self, index1: usize, index2: usize) {
+        // assert!(self.size>index1 && self.size>index2);
+
+        let pointer1 = self.get_mut_pointer_unchecked(index1);
+        let pointer2 = self.get_mut_pointer_unchecked(index2);
 
         unsafe {
             ptr::swap(pointer1, pointer2);
@@ -370,6 +442,21 @@ impl<T> FastArray<T> {
     }
 
     /// ## Info
+    /// this method has the same functionality as [`FastArray::swap_unsafe`], but skips the `self.len() > index1 && self.len() > index2` check for performance reasons.
+    /// 
+    /// If `self.len() > index1 && self.len() > index2` isn't respected, using this method becomes undefined behavior
+    pub unsafe fn swap_unsafe_unchecked(&self, index1: usize, index2: usize) {
+        // assert!(self.size>index1 && self.size>index2);
+
+        let pointer1 = self.get_mut_pointer_unsafe_unchecked(index1);
+        let pointer2 = self.get_mut_pointer_unsafe_unchecked(index2);
+
+        unsafe {
+            ptr::swap(pointer1, pointer2);
+        }
+    }
+
+    /// ## Info
     /// returns the raw pointer to the specified index.
     /// 
     /// ## Warning
@@ -378,7 +465,18 @@ impl<T> FastArray<T> {
     /// ## Panics
     /// if index is out of bounds of the array.
     pub fn get_pointer(&self, index: usize) -> *const T {
-        assert!(self.size>index);
+    assert!(self.size>index);
+        
+        let pointer = unsafe { self.pointer.add(index) };
+        pointer
+    }
+
+    /// ## Info
+    /// this method has the same functionality as [`FastArray::get_pointer`], but skips the `self.len() > index` check for performance reasons.
+    /// 
+    /// If `self.len() > index` isn't respected, using this method becomes undefined behavior
+    pub fn get_pointer_unchecked(&self, index: usize) -> *const T {
+    // assert!(self.size>index);
         
         let pointer = unsafe { self.pointer.add(index) };
         pointer
@@ -402,6 +500,17 @@ impl<T> FastArray<T> {
         pointer
     }
 
+    /// ## Info
+    /// this method has the same functionality as [`FastArray::get_mut_pointer`], but skips the `self.len() > index` check for performance reasons.
+    /// 
+    /// If `self.len() > index` isn't respected, using this method becomes undefined behavior
+    pub fn get_mut_pointer_unchecked(&self, index: usize) -> *mut T {
+        // assert!(self.size>index);
+            
+            let pointer = unsafe { self.pointer.add(index) };
+            pointer
+        }
+
     /// ## Warning
     /// you're probably looking for [`FastArray::get_mut_pointer`].
     /// 
@@ -414,8 +523,19 @@ impl<T> FastArray<T> {
     /// 
     /// ## Panics
     /// if index is out of bounds of the array.
-    pub fn get_mut_pointer_unsafe(&self, index: usize) -> *mut T {
+    pub unsafe fn get_mut_pointer_unsafe(&self, index: usize) -> *mut T {
         assert!(self.size>index);
+        
+        let pointer = unsafe { self.pointer.add(index) };
+        pointer
+    }
+
+    /// ## Info
+    /// this method has the same functionality as [`FastArray::get_mut_pointer_unsafe`], but skips the `self.len() > index` check for performance reasons.
+    /// 
+    /// If `self.len() <= index`, using this method becomes undefined behavior
+    pub unsafe fn get_mut_pointer_unsafe_unchecked(&self, index: usize) -> *mut T {
+        // assert!(self.size>index);
         
         let pointer = unsafe { self.pointer.add(index) };
         pointer
@@ -450,6 +570,7 @@ impl FastArray<u8> {
 impl<T> Index<usize> for FastArray<T> {
     type Output = T;
 
+    #[inline(always)]
     fn index(&self, index: usize) -> &Self::Output {
         assert!(!(index>= self.size));
 
@@ -490,8 +611,9 @@ impl<T> Drop for FastArray<T> {
                 unsafe { ptr::drop_in_place(self.pointer.add(i)) };
             }
 
-            let layout = Layout::array::<T>(self.size).expect("Failed to create layout");
-                unsafe { dealloc(self.pointer as *mut u8, layout) };
+            // let layout = Layout::array::<T>(self.size).expect("Failed to create layout");
+            let layout = Layout::from_size_align(self.size * std::mem::size_of::<T>(), 32).expect("failed to create layout");
+            unsafe { dealloc(self.pointer as *mut u8, layout) };
         }
     }
 }
@@ -531,18 +653,18 @@ pub fn vec_iter() {
     drop(mod_vec);
 }
 
-// #[test]
-pub fn fast_arr_iter() {
-    let fast_arr: FastArray<i32> = (0..1600000).into();
-    let iter = fast_arr.as_fast_iterator().map(|x| x+1).as_fast_array();
-    drop(iter);
-}
+// // #[test]
+// pub fn fast_arr_iter() {
+//     let fast_arr: FastArray<i32> = (0..1600000).into();
+//     let iter: FastArray<i32> = fast_arr.as_fast_iterator().map(|x| x+1).as_fast_array();
+//     drop(iter);
+// }
 
-// #[test]
-pub fn fast_arr_simd() {
-    let mut fast_arr: FastArray<i32> = (0..1600000).into();
-    fast_arr.simd_add(1);
-    drop(fast_arr);
-}
+// // #[test]
+// pub fn fast_arr_simd() {
+//     let mut fast_arr: FastArray<i32> = (0..1600000).into();
+//     fast_arr.simd_add(1);
+//     drop(fast_arr);
+// }
 
 // target/debug/deps/fast_array-53812f436eb8f409

@@ -19,6 +19,7 @@ opt-level = 3
 
 [features]
 serde = ["dep:serde"]
+nightly = []
 
 [dev-dependencies]
 criterion = "0.5.1"
