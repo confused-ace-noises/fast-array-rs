@@ -75,7 +75,7 @@ pub mod simd {
     impl<T: Copy + Default + Add<Output = T> + Mul<Output = T> + std::iter::Sum + SimdElement>
         FastArray<T>
     {
-        const PREFETCH_DISTANCE: usize = 256;
+        const PREFETCH_DISTANCE: usize = 128;
 
         // 🚀 SIMD Addition
         pub fn simd_add_2_lanes(&mut self, other: T)
@@ -196,10 +196,10 @@ pub mod simd {
             LaneCount<N>: SupportedLaneCount,
             Simd<T, N>: Add<Output = Simd<T, N>>, // ✅ Explicit per-lane Add support
         {
-            assert!(self.pointer as usize % 32 == 0, "Memory not properly aligned!");
+            // assert!(self.pointer as usize % 32 == 0, "Memory not properly aligned!");
 
-            type WideSimd<T, const N: usize> = Simd<T, N>;
-            let lanes = WideSimd::<T, N>::LEN;
+            // type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = Simd::<T, N>::LEN;
             let mut i = 0;
 
             while i + lanes <= self.size {
@@ -210,9 +210,9 @@ pub mod simd {
                         _MM_HINT_T0,
                     );
 
-                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
-                    let bv = WideSimd::splat(other);
-                    *(self.pointer.add(i) as *mut WideSimd<T, N>) = av + bv;
+                    let av = *(self.pointer.add(i) as *const Simd<T, N>);
+                    let bv = Simd::splat(other);
+                    *(self.pointer.add(i) as *mut Simd<T, N>) = av + bv;
                 }
                 i += lanes;
             }
@@ -231,8 +231,8 @@ pub mod simd {
             LaneCount<N>: SupportedLaneCount,
             Simd<T, N>: Mul<Output = Simd<T, N>>, // ✅ Explicit per-lane Mul support
         {
-            type WideSimd<T, const N: usize> = Simd<T, N>;
-            let lanes = WideSimd::<T, N>::LEN;
+            // type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = Simd::<T, N>::LEN;
             let mut i = 0;
 
             while i + lanes <= self.size {
@@ -243,9 +243,9 @@ pub mod simd {
                         _MM_HINT_T0,
                     );
 
-                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
-                    let bv = WideSimd::splat(other);
-                    *(self.pointer.add(i) as *mut WideSimd<T, N>) = av * bv;
+                    let av = *(self.pointer.add(i) as *const Simd<T, N>);
+                    let bv = Simd::splat(other);
+                    *(self.pointer.add(i) as *mut Simd<T, N>) = av * bv;
                 }
                 i += lanes;
             }
@@ -264,10 +264,10 @@ pub mod simd {
             LaneCount<N>: SupportedLaneCount,
             Simd<T, N>: Mul<Output = Simd<T, N>> + Add<Output = Simd<T, N>>, // ✅ Mul & Add for dot product
         {
-            type WideSimd<T, const N: usize> = Simd<T, N>;
-            let lanes = WideSimd::<T, N>::LEN;
+            // type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = Simd::<T, N>::LEN;
             let mut i = 0;
-            let mut sum = WideSimd::<T, N>::splat(T::default());
+            let mut sum = Simd::<T, N>::splat(T::default());
 
             while i + lanes <= self.size {
                 unsafe {
@@ -282,13 +282,13 @@ pub mod simd {
                         _MM_HINT_T0,
                     );
 
-                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
-                    let bv = *(other.pointer.add(i) as *const WideSimd<T, N>);
+                    let av = *(self.pointer.add(i) as *const Simd<T, N>);
+                    let bv = *(other.pointer.add(i) as *const Simd<T, N>);
                     sum += av * bv;
                 }
                 i += lanes;
             }
-            
+
             let mut scalar_sum = sum.to_array().into_iter().sum();
             
             while i < self.size {

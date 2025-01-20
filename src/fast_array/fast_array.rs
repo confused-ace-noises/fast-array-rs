@@ -24,6 +24,7 @@ use crate::fast_iterator::fast_iterator::FastIterator;
 /// ```
 #[derive(Debug, Clone)]
 #[repr(align(32))]
+// #[repr(align(64))]
 pub struct FastArray<T> {
     pub(crate) pointer: *mut T,
     pub(crate) size: usize,
@@ -261,6 +262,9 @@ impl<T> FastArray<T> {
         // let layout = Layout::array::<T>(len).expect("failed to create layout");
         let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 32)
             .expect("Failed to create layout");
+
+        // let layout = Layout::from_size_align(len * std::mem::size_of::<T>(), 64)
+        //     .expect("Failed to create layout");
 
 
         let raw_ptr = unsafe {
