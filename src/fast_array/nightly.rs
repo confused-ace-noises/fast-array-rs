@@ -1,4 +1,5 @@
 #![cfg(feature = "nightly")]
+// use std::iter::Step;
 use std::cmp::Ordering;
 
 use crate::FastArray;
@@ -65,121 +66,239 @@ impl<T: Step + std::fmt::Debug + Copy> FastArray<T> {
 #[cfg(all(feature = "simd", feature = "nightly"))]
 pub mod simd {
     use crate::FastArray;
-    use std::simd::{f32x4, f32x8, Simd, SimdElement};
     use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+    use std::ops::{Add, Mul};
+    use std::simd::{f32x4, f32x8, LaneCount, Simd, SimdElement, SupportedLaneCount};
+    // use crate::make_simd;
+    // use std::concat_idents;
 
-
-    impl<T> FastArray<T>
-    where
-        T: SimdElement + Copy + std::ops::Add<Output = T>, // Ensure T supports addition
-        Simd<T, 4>: std::ops::Add<Output = Simd<T, 4>>, // Ensure SIMD type supports addition
+    impl<T: Copy + Default + Add<Output = T> + Mul<Output = T> + std::iter::Sum + SimdElement>
+        FastArray<T>
     {
-        #[inline(always)]
-        pub fn simd_add(&mut self, other: T) {
-            let len = self.size;
-            type WideSimd<T> = Simd<T, 4>;
-            let lanes = WideSimd::<T>::LEN;
+        const PREFETCH_DISTANCE: usize = 256;
+
+        // 🚀 SIMD Addition
+        pub fn simd_add_2_lanes(&mut self, other: T)
+        where
+            Simd<T, 2>: Add<Output = Simd<T, 2>>,
+        {
+            self.simd_add_generic::<2>(other);
+        }
+        pub fn simd_add_4_lanes(&mut self, other: T)
+        where
+            Simd<T, 4>: Add<Output = Simd<T, 4>>,
+        {
+            self.simd_add_generic::<4>(other);
+        }
+        pub fn simd_add_8_lanes(&mut self, other: T)
+        where
+            Simd<T, 8>: Add<Output = Simd<T, 8>>,
+        {
+            self.simd_add_generic::<8>(other);
+        }
+        pub fn simd_add_16_lanes(&mut self, other: T)
+        where
+            Simd<T, 16>: Add<Output = Simd<T, 16>>,
+        {
+            self.simd_add_generic::<16>(other);
+        }
+        pub fn simd_add_32_lanes(&mut self, other: T)
+        where
+            Simd<T, 32>: Add<Output = Simd<T, 32>>,
+        {
+            self.simd_add_generic::<32>(other);
+        }
+        pub fn simd_add_64_lanes(&mut self, other: T)
+        where
+            Simd<T, 64>: Add<Output = Simd<T, 64>>,
+        {
+            self.simd_add_generic::<64>(other);
+        }
+
+        // 🚀 SIMD Multiplication
+        pub fn simd_mul_2_lanes(&mut self, other: T)
+        where
+            Simd<T, 2>: Mul<Output = Simd<T, 2>>,
+        {
+            self.simd_mul_generic::<2>(other);
+        }
+        pub fn simd_mul_4_lanes(&mut self, other: T)
+        where
+            Simd<T, 4>: Mul<Output = Simd<T, 4>>,
+        {
+            self.simd_mul_generic::<4>(other);
+        }
+        pub fn simd_mul_8_lanes(&mut self, other: T)
+        where
+            Simd<T, 8>: Mul<Output = Simd<T, 8>>,
+        {
+            self.simd_mul_generic::<8>(other);
+        }
+        pub fn simd_mul_16_lanes(&mut self, other: T)
+        where
+            Simd<T, 16>: Mul<Output = Simd<T, 16>>,
+        {
+            self.simd_mul_generic::<16>(other);
+        }
+        pub fn simd_mul_32_lanes(&mut self, other: T)
+        where
+            Simd<T, 32>: Mul<Output = Simd<T, 32>>,
+        {
+            self.simd_mul_generic::<32>(other);
+        }
+        pub fn simd_mul_64_lanes(&mut self, other: T)
+        where
+            Simd<T, 64>: Mul<Output = Simd<T, 64>>,
+        {
+            self.simd_mul_generic::<64>(other);
+        }
+
+        // 🚀 SIMD Dot Product
+        pub fn simd_dot_2_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 2>: Add<Output = Simd<T, 2>> + Mul<Output = Simd<T, 2>>,
+        {
+            self.simd_dot_generic::<2>(other)
+        }
+        pub fn simd_dot_4_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 4>: Add<Output = Simd<T, 4>> + Mul<Output = Simd<T, 4>>,
+        {
+            self.simd_dot_generic::<4>(other)
+        }
+        pub fn simd_dot_8_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 8>: Add<Output = Simd<T, 8>> + Mul<Output = Simd<T, 8>>,
+        {
+            self.simd_dot_generic::<8>(other)
+        }
+        pub fn simd_dot_16_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 16>: Add<Output = Simd<T, 16>> + Mul<Output = Simd<T, 16>>,
+        {
+            self.simd_dot_generic::<16>(other)
+        }
+        pub fn simd_dot_32_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 32>: Add<Output = Simd<T, 32>> + Mul<Output = Simd<T, 32>>,
+        {
+            self.simd_dot_generic::<32>(other)
+        }
+        pub fn simd_dot_64_lanes(&self, other: &FastArray<T>) -> T
+        where
+            Simd<T, 64>: Add<Output = Simd<T, 64>> + Mul<Output = Simd<T, 64>>,
+        {
+            self.simd_dot_generic::<64>(other)
+        }
+
+        fn simd_add_generic<const N: usize>(&mut self, other: T)
+        where
+            LaneCount<N>: SupportedLaneCount,
+            Simd<T, N>: Add<Output = Simd<T, N>>, // ✅ Explicit per-lane Add support
+        {
+            assert!(self.pointer as usize % 32 == 0, "Memory not properly aligned!");
+
+            type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = WideSimd::<T, N>::LEN;
             let mut i = 0;
 
-            // 🔥 New: Align pointer before SIMD processing
-            while i < len
-                && (unsafe { self.pointer.add(i) } as usize) % std::mem::align_of::<WideSimd<T>>()
-                    != 0
-            {
+            while i + lanes <= self.size {
                 unsafe {
-                    *self.pointer.add(i) + *self.pointer.add(i) + other;
-                }
-                i += 1;
-            }
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        self.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
 
-            // 🔥 SIMD Processing
-            while i + lanes <= len {
-                unsafe {
-                    _mm_prefetch(self.pointer.add(i + 64) as *const i8, _MM_HINT_T0);
-                    let av = *(self.pointer.add(i) as *const WideSimd<T>);
+                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
                     let bv = WideSimd::splat(other);
-                    let result = av + bv;
-                    *(self.pointer.add(i) as *mut WideSimd<T>) = result; // SIMD store
+                    *(self.pointer.add(i) as *mut WideSimd<T, N>) = av + bv;
                 }
                 i += lanes;
             }
 
-            // 🔥 Scalar cleanup (if remainder exists)
-            while i < len {
+            while i < self.size {
+                let x = unsafe { self.pointer.add(i) };
                 unsafe {
-                    *self.pointer.add(i) = *self.pointer.add(i) + other;
+                    *x = *x + other;
                 }
                 i += 1;
             }
         }
 
-        // #[inline(always)]
-        // pub fn simd_add(&mut self, other: T) {
-        //     assert_eq!((self.pointer as usize) % 32, 0, "Pointer self is not 32-byte aligned!");
-        //     // assert_eq!((other.pointer as usize) % 32, 0, "Pointer other is not 32-byte aligned!");
-        //     // assert_eq!(self.size, other.size, "Arrays must have the same size!");
-        //     let len = self.size;
-
-        //     type WideSimd<T> = Simd<T, 8>; // Use a fixed SIMD width
-        //     let lanes = WideSimd::<T>::LEN;
-        //     let mut i = 0;
-
-        //     while i + lanes <= len {
-        //         unsafe {
-        //             // let av = WideSimd::from_slice(std::slice::from_raw_parts(self.pointer.add(i), lanes));
-        //             let av = *(self.pointer.add(i) as *const WideSimd<T>);
-        //             let bv = WideSimd::splat(other);
-        //             let result = av + bv; // Now this compiles because T supports addition
-        //             // result.copy_to_slice(std::slice::from_raw_parts_mut(self.pointer.add(i), lanes));
-        //             *(self.pointer.add(i) as *mut WideSimd<T>) = result; // Aligned SIMD store
-        //             // result.store_select(slice, enable);
-        //         }
-        //         i += lanes;
-        //     }
-
-        //     // Handle remaining scalar elements
-        //     while i < len {
-        //         unsafe {
-        //             *self.pointer.add(i) = *self.pointer.add(i) + other;
-        //         }
-        //         i += 1;
-        //     }
-        // }
-
-        pub fn simd_add_array(&mut self, other: &FastArray<T>) {
-            // assert_eq!((self.pointer as usize) % 32, 0, "Pointer self is not 32-byte aligned!");
-            // assert_eq!((other.pointer as usize) % 32, 0, "Pointer other is not 32-byte aligned!");
-            assert_eq!(self.size, other.size, "Arrays must have the same size!");
-            let len = self.size;
-
-            type WideSimd<T> = Simd<T, 4>; // Use a fixed SIMD width
-            let lanes = WideSimd::<T>::LEN;
+        fn simd_mul_generic<const N: usize>(&mut self, other: T)
+        where
+            LaneCount<N>: SupportedLaneCount,
+            Simd<T, N>: Mul<Output = Simd<T, N>>, // ✅ Explicit per-lane Mul support
+        {
+            type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = WideSimd::<T, N>::LEN;
             let mut i = 0;
 
-            while i + lanes <= len {
+            while i + lanes <= self.size {
                 unsafe {
-                    let av = WideSimd::from_slice(std::slice::from_raw_parts(
-                        self.pointer.add(i),
-                        lanes,
-                    ));
-                    let bv = WideSimd::from_slice(std::slice::from_raw_parts(
-                        other.pointer.add(i),
-                        lanes,
-                    ));
-                    let result = av + bv; // Now this compiles because T supports addition
-                                          // result.copy_to_slice(std::slice::from_raw_parts_mut(self.pointer.add(i), lanes));
-                    *(self.pointer.add(i) as *mut WideSimd<T>) = result; // Aligned SIMD store
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        self.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
+
+                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
+                    let bv = WideSimd::splat(other);
+                    *(self.pointer.add(i) as *mut WideSimd<T, N>) = av * bv;
                 }
                 i += lanes;
             }
 
-            // Handle remaining scalar elements
-            while i < len {
+            while i < self.size {
+                let x = unsafe { self.pointer.add(i) };
                 unsafe {
-                    *self.pointer.add(i) = *self.pointer.add(i) + *other.pointer.add(i);
+                    *x = *x * other;
                 }
                 i += 1;
             }
+        }
+
+        fn simd_dot_generic<const N: usize>(&self, other: &FastArray<T>) -> T
+        where
+            LaneCount<N>: SupportedLaneCount,
+            Simd<T, N>: Mul<Output = Simd<T, N>> + Add<Output = Simd<T, N>>, // ✅ Mul & Add for dot product
+        {
+            type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = WideSimd::<T, N>::LEN;
+            let mut i = 0;
+            let mut sum = WideSimd::<T, N>::splat(T::default());
+
+            while i + lanes <= self.size {
+                unsafe {
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        self.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        other.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
+
+                    let av = *(self.pointer.add(i) as *const WideSimd<T, N>);
+                    let bv = *(other.pointer.add(i) as *const WideSimd<T, N>);
+                    sum += av * bv;
+                }
+                i += lanes;
+            }
+            
+            let mut scalar_sum = sum.to_array().into_iter().sum();
+            
+            while i < self.size {
+                unsafe {
+                    scalar_sum = scalar_sum + (*self.pointer.add(i) * *other.pointer.add(i));
+                }
+                i += 1;
+            }
+
+            scalar_sum
         }
     }
 }

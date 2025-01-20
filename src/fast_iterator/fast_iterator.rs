@@ -218,7 +218,7 @@ pub fn vec_iter() {
 //     drop(iter);
 // }
 
-// #[test]
+// // #[test]
 // pub fn fast_arr_simd() {
 //     // let mut fast_arr: FastArray<usize> = FastArray::new_range(0, 1_600_000_000);
 //     let mut fast_arr: FastArray<usize> = (0..1_000_000).into();
