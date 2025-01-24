@@ -1,11 +1,13 @@
 [package]
-name = "fast-array"
+name = "fast-collections"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 serde = { version = "*", optional = true }
-# std = { version = "*", features = ["simd"] }
+rayon = { version = "*", optional = true }
+# rayon = { version = "*" }
+# serde = { version = "*" }
 
 [profile.test]
 codegen-units = 1
@@ -21,6 +23,7 @@ opt-level = 3
 serde = ["dep:serde"]
 nightly = []
 simd = ["nightly"]
+rayon = ["dep:rayon"]
 
 [dev-dependencies]
 criterion = "0.5.1"

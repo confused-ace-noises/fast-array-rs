@@ -1,12 +1,25 @@
-use crate::fast_array::fast_array::FastArray;
 use super::fast_iterator::FastIterator;
+use crate::fast_array::fast_array::FastArray;
 
 impl<T> FastIterator<T> {
-    pub fn as_fast_array(mut self) -> FastArray<T> {
-        let size = self.len;
+    pub fn into_fast_array(mut self) -> FastArray<T> {
+        let size = (self.len-self.current_index.0) - self.current_index.1;
         let pointer = self.pointer;
-        self.pointer = std::ptr::null_mut();
-        FastArray { pointer, size: size }
+
+        if self.current_index.0 == 0 && self.current_index.1 == 0 {
+            self.pointer = std::ptr::null_mut();
+            FastArray {
+                pointer,
+                size: size,
+            }
+        } else {
+            let func = |_| {
+                self.next().unwrap()
+            };
+            let fast_arr = FastArray::new_func(size, func);
+            drop(self);
+            fast_arr
+        }
     }
 }
 

@@ -1,4 +1,3 @@
-use core::slice;
 use std::cmp::Ordering;
 
 use crate::{fast_array::fast_array::FastArray, fast_iterator::fast_iterator::FastIterator};
@@ -37,17 +36,16 @@ impl<T> FastArray<T> {
     ///
     /// let array = fast_arr!(1,2,3,4,5);
     /// 
-    /// let iterator = array.as_fast_iterator();
+    /// let iterator = array.into_fast_iterator();
     /// ```
     pub fn as_fast_iterator(mut self) -> FastIterator<T> {
-        // Make sure to set self.pointer to null after transferring ownership
         let pointer = self.pointer;
-        self.pointer = std::ptr::null_mut(); // Invalidating the pointer
+        self.pointer = std::ptr::null_mut(); // Invalidate the pointer
         
         FastIterator {
             pointer,
             len: self.size,
-            current_index: 0,
+            current_index: (0, 0),
         }
     }
 }
@@ -181,7 +179,7 @@ impl<T> IntoIterator for FastArray<T> {
 
     type IntoIter = FastIterator<Self::Item>;
 
-    #[doc(alias = "as_fast_iterator")]
+    #[doc(alias = "into_fast_iterator")]
     fn into_iter(self) -> Self::IntoIter {
         self.as_fast_iterator()
     }
@@ -225,7 +223,7 @@ impl<T, I: ExactSizeIterator<Item = T>, >  AsFastArray<T> for I {
     /// turns the iterator into a [`FastArray`] with little overhead.
     fn as_fast_array(mut self) -> FastArray<T> {
         let size = self.len();
-        let func = || self.next().unwrap();
+        let func = |_| self.next().unwrap();
 
         FastArray::new_func(size, func)
     }
@@ -235,7 +233,7 @@ impl<T> From<Vec<T>> for FastArray<T> {
     fn from(value: Vec<T>) -> Self {
         let len = value.len();
         let mut iter = value.into_iter();
-        let func = || iter.next().unwrap();
+        let func = |_| iter.next().unwrap();
         Self::new_func(len, func)
     }
 }
@@ -297,7 +295,7 @@ impl<'de, T: serde::Deserialize<'de>> serde::Deserialize<'de> for FastArray<T> {
                     return Ok(vec.into())
                 }
 
-                let iter = || seq.next_element::<U>();
+                let iter = |_| seq.next_element::<U>();
 
                 FastArray::new_func(_len, iter);
             }
@@ -311,7 +309,7 @@ impl<T: Clone> From<&mut [T]> for FastArray<T> {
     fn from(value: &mut [T]) -> Self {
         let len = value.len();
         let mut iter = value.iter();
-        let func = || iter.next().unwrap().clone();
+        let func = |_| iter.next().unwrap().clone();
 
         FastArray::new_func(len, func)
     }
@@ -321,23 +319,8 @@ impl<T: Clone> From<&[T]> for FastArray<T> {
     fn from(value: &[T]) -> Self {
         let len = value.len();
         let mut iter = value.iter();
-        let func = || iter.next().unwrap().clone();
+        let func = |_| iter.next().unwrap().clone();
 
         FastArray::new_func(len, func)
     }
-}
-
-// impl<T> AsRef<[T]> for FastArray<T> {
-//     fn as_ref(&self) -> &[T] {
-        
-//     }
-// }
-
-// #[test]
-fn test() {
-    let slice: &mut [i32] = &mut [0,1,2,3,4,5];
-    let mut fast_arr: FastArray<_> = slice.into();
-    println!("{:?}", slice);
-    fast_arr[1] = 100;
-    println!("{:?}", slice);
 }

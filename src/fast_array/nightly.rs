@@ -68,16 +68,15 @@ pub mod simd {
     use crate::FastArray;
     use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
     use std::ops::{Add, Mul};
-    use std::simd::{f32x4, f32x8, LaneCount, Simd, SimdElement, SupportedLaneCount};
-    // use crate::make_simd;
-    // use std::concat_idents;
+    use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
     impl<T: Copy + Default + Add<Output = T> + Mul<Output = T> + std::iter::Sum + SimdElement>
         FastArray<T>
     {
         const PREFETCH_DISTANCE: usize = 128;
+        
 
-        // 🚀 SIMD Addition
+        // splat add
         pub fn simd_add_2_lanes(&mut self, other: T)
         where
             Simd<T, 2>: Add<Output = Simd<T, 2>>,
@@ -115,7 +114,46 @@ pub mod simd {
             self.simd_add_generic::<64>(other);
         }
 
-        // 🚀 SIMD Multiplication
+        // array add
+
+        pub fn simd_add_array_2_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 2>: Add<Output = Simd<T, 2>>,
+        {
+            self.simd_add_array_generic::<2>(other);
+        }
+        pub fn simd_add_array_4_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 4>: Add<Output = Simd<T, 4>>,
+        {
+            self.simd_add_array_generic::<4>(other);
+        }
+        pub fn simd_add_array_8_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 8>: Add<Output = Simd<T, 8>>,
+        {
+            self.simd_add_array_generic::<8>(other);
+        }
+        pub fn simd_add_array_16_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 16>: Add<Output = Simd<T, 16>>,
+        {
+            self.simd_add_array_generic::<16>(other);
+        }
+        pub fn simd_add_array_32_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 32>: Add<Output = Simd<T, 32>>,
+        {
+            self.simd_add_array_generic::<32>(other);
+        }
+        pub fn simd_add_array_64_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 64>: Add<Output = Simd<T, 64>>,
+        {
+            self.simd_add_array_generic::<64>(other);
+        }
+
+        // splat mul
         pub fn simd_mul_2_lanes(&mut self, other: T)
         where
             Simd<T, 2>: Mul<Output = Simd<T, 2>>,
@@ -153,7 +191,46 @@ pub mod simd {
             self.simd_mul_generic::<64>(other);
         }
 
-        // 🚀 SIMD Dot Product
+        // mul array
+        pub fn simd_mul_array_2_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 2>: Mul<Output = Simd<T, 2>>,
+        {
+            self.simd_mul_array_generic::<2>(other);
+        }
+        pub fn simd_mul_array_4_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 4>: Mul<Output = Simd<T, 4>>,
+        {
+            self.simd_mul_array_generic::<4>(other);
+        }
+        pub fn simd_mul_array_8_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 8>: Mul<Output = Simd<T, 8>>,
+        {
+            self.simd_mul_array_generic::<8>(other);
+        }
+        pub fn simd_mul_array_16_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 16>: Mul<Output = Simd<T, 16>>,
+        {
+            self.simd_mul_array_generic::<16>(other);
+        }
+        pub fn simd_mul_array_32_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 32>: Mul<Output = Simd<T, 32>>,
+        {
+            self.simd_mul_array_generic::<32>(other);
+        }
+        pub fn simd_mul_array_64_lanes(&mut self, other: &FastArray<T>)
+        where
+            Simd<T, 64>: Mul<Output = Simd<T, 64>>,
+        {
+            self.simd_mul_array_generic::<64>(other);
+        }
+
+
+        // Dot Product
         pub fn simd_dot_2_lanes(&self, other: &FastArray<T>) -> T
         where
             Simd<T, 2>: Add<Output = Simd<T, 2>> + Mul<Output = Simd<T, 2>>,
@@ -194,7 +271,7 @@ pub mod simd {
         fn simd_add_generic<const N: usize>(&mut self, other: T)
         where
             LaneCount<N>: SupportedLaneCount,
-            Simd<T, N>: Add<Output = Simd<T, N>>, // ✅ Explicit per-lane Add support
+            Simd<T, N>: Add<Output = Simd<T, N>>,
         {
             // assert!(self.pointer as usize % 32 == 0, "Memory not properly aligned!");
 
@@ -226,10 +303,46 @@ pub mod simd {
             }
         }
 
+        fn simd_add_array_generic<const N: usize>(&mut self, other: &FastArray<T>)
+        where
+            LaneCount<N>: SupportedLaneCount,
+            Simd<T, N>: Add<Output = Simd<T, N>>, // ✅ Explicit per-lane Add support
+        {
+            // assert!(self.pointer as usize % 32 == 0, "Memory not properly aligned!");
+            assert_eq!(self.size, other.size, "the two FastArrays don't have the same length!");
+
+            // type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = Simd::<T, N>::LEN;
+            let mut i = 0;
+
+            while i + lanes <= self.size {
+                unsafe {
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        self.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
+
+                    let av = *(self.pointer.add(i) as *const Simd<T, N>);
+                    let bv = *(other.pointer.add(i) as *const Simd<T, N>);
+                    *(self.pointer.add(i) as *mut Simd<T, N>) = av + bv;
+                }
+                i += lanes;
+            }
+
+            while i < self.size {
+                let x = unsafe { self.pointer.add(i) };
+                unsafe {
+                    *x = *x + other[i];
+                }
+                i += 1;
+            }
+        }
+
         fn simd_mul_generic<const N: usize>(&mut self, other: T)
         where
             LaneCount<N>: SupportedLaneCount,
-            Simd<T, N>: Mul<Output = Simd<T, N>>, // ✅ Explicit per-lane Mul support
+            Simd<T, N>: Mul<Output = Simd<T, N>>,
         {
             // type WideSimd<T, const N: usize> = Simd<T, N>;
             let lanes = Simd::<T, N>::LEN;
@@ -259,12 +372,49 @@ pub mod simd {
             }
         }
 
+        fn simd_mul_array_generic<const N: usize>(&mut self, other: &FastArray<T>)
+        where
+            LaneCount<N>: SupportedLaneCount,
+            Simd<T, N>: Mul<Output = Simd<T, N>>,
+        {
+            assert_eq!(self.size, other.size, "the two FastArrays don't have the same length!");
+
+            // type WideSimd<T, const N: usize> = Simd<T, N>;
+            let lanes = Simd::<T, N>::LEN;
+            let mut i = 0;
+
+            while i + lanes <= self.size {
+                unsafe {
+                    #[cfg(target_arch = "x86_64")]
+                    _mm_prefetch(
+                        self.pointer.add(i + Self::PREFETCH_DISTANCE).cast(),
+                        _MM_HINT_T0,
+                    );
+
+                    let av = *(self.pointer.add(i) as *const Simd<T, N>);
+                    let bv = *(other.pointer.add(i) as *const Simd<T, N>);
+                    *(self.pointer.add(i) as *mut Simd<T, N>) = av * bv;
+                }
+                i += lanes;
+            }
+
+            while i < self.size {
+                let x = unsafe { self.pointer.add(i) };
+                unsafe {
+                    *x = *x * other[i];
+                }
+                i += 1;
+            }
+        }
+
         fn simd_dot_generic<const N: usize>(&self, other: &FastArray<T>) -> T
         where
             LaneCount<N>: SupportedLaneCount,
-            Simd<T, N>: Mul<Output = Simd<T, N>> + Add<Output = Simd<T, N>>, // ✅ Mul & Add for dot product
+            Simd<T, N>: Mul<Output = Simd<T, N>> + Add<Output = Simd<T, N>>,
         {
             // type WideSimd<T, const N: usize> = Simd<T, N>;
+            assert_eq!(self.size, other.size, "the two FastArrays don't have the same length!");
+
             let lanes = Simd::<T, N>::LEN;
             let mut i = 0;
             let mut sum = Simd::<T, N>::splat(T::default());
