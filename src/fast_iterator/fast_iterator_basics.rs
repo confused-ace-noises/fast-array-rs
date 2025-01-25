@@ -1,5 +1,5 @@
 use super::fast_iterator::FastIterator;
-use crate::fast_array::fast_array::FastArray;
+use crate::{fast_array::fast_array::FastArray, FastMatrix};
 
 impl<T> FastIterator<T> {
     pub fn into_fast_array(mut self) -> FastArray<T> {
@@ -17,6 +17,31 @@ impl<T> FastIterator<T> {
                 self.next().unwrap()
             };
             let fast_arr = FastArray::new_func(size, func);
+            drop(self);
+            fast_arr
+        }
+    }
+
+    pub fn into_fast_matrix(mut self, rows: usize, columns: usize) -> FastMatrix<T> {
+        let size = (self.len-self.current_index.0) - self.current_index.1;
+
+        assert_eq!(size, rows*columns, "height*width mut be equal to the length of the iterator!");
+
+        let pointer = self.pointer;
+
+        if self.current_index.0 == 0 && self.current_index.1 == 0 {
+            self.pointer = std::ptr::null_mut();
+
+            FastMatrix {
+                pointer,
+                rows, 
+                columns
+            }
+        } else {
+            let func = |_| {
+                self.next().unwrap()
+            };
+            let fast_arr = FastMatrix::new_func(rows, columns, func);
             drop(self);
             fast_arr
         }

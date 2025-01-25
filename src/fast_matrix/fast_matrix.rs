@@ -265,7 +265,7 @@ impl<T: Clone> FastMatrix<T> {
     }
 
     pub fn into_fast_iter_arrays(self) -> FastIterator<FastArray<T>> {
-        self.into_nested_arrays().as_fast_iterator()
+        self.into_nested_arrays().into_fast_iterator()
     }
 }
 

@@ -38,7 +38,7 @@ impl<T> FastArray<T> {
     /// 
     /// let iterator = array.into_fast_iterator();
     /// ```
-    pub fn as_fast_iterator(mut self) -> FastIterator<T> {
+    pub fn into_fast_iterator(mut self) -> FastIterator<T> {
         let pointer = self.pointer;
         self.pointer = std::ptr::null_mut(); // Invalidate the pointer
         
@@ -158,7 +158,7 @@ impl<T: ToString> FastArray<T> {
     /// ```
     pub fn join(self, sep: impl AsRef<str>) -> String {
         let sep = sep.as_ref();
-        let iter = self.as_fast_iterator();
+        let iter = self.into_fast_iterator();
         let mut first = false;
         let new_self = iter
             .map(|item| {
@@ -181,7 +181,7 @@ impl<T> IntoIterator for FastArray<T> {
 
     #[doc(alias = "into_fast_iterator")]
     fn into_iter(self) -> Self::IntoIter {
-        self.as_fast_iterator()
+        self.into_fast_iterator()
     }
 }
 
