@@ -33,7 +33,7 @@ The library offers three main types:
 
 ## Advanced notes
 This library includes methods for the more advanced and low-level folks too;
-There are plenty of unsafe methods for direct allocation, not checked indexing, or 
+There are plenty of unsafe methods for direct allocation, not checked indexing, or even skipping borrow checker rules, so use those methods sparingly and wisely.
 
 
 ***
