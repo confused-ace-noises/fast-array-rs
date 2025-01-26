@@ -213,15 +213,15 @@ impl<U> FromIterator<U> for FastArray<U> {
 
 /// ## Info
 /// trait implemented for types that can be turned into a [`FastArray`] with little to no overhead.
-pub trait AsFastArray<T> {
-    fn as_fast_array(self) -> FastArray<T>;
+pub trait IntoFastArray<T> {
+    fn into_fast_array(self) -> FastArray<T>;
 }
 
-impl<T, I: ExactSizeIterator<Item = T>, >  AsFastArray<T> for I {
+impl<T, I: ExactSizeIterator<Item = T>, >  IntoFastArray<T> for I {
     #[inline(always)]
     /// ## Info
     /// turns the iterator into a [`FastArray`] with little overhead.
-    fn as_fast_array(mut self) -> FastArray<T> {
+    fn into_fast_array(mut self) -> FastArray<T> {
         let size = self.len();
         let func = |_| self.next().unwrap();
 

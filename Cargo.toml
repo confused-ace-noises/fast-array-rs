@@ -26,7 +26,7 @@ simd = ["nightly"]
 rayon = ["dep:rayon"]
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = {version = "0.5.1", default-features = false, features = ["html_reports"] }
 
 [[bench]]
 name = "benchmark"

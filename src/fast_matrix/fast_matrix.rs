@@ -1,4 +1,4 @@
-use std::{alloc::{alloc, alloc_zeroed, handle_alloc_error, Layout}, ops::{Index, IndexMut}, ptr};
+use std::{alloc::{alloc, alloc_zeroed, dealloc, handle_alloc_error, Layout}, ops::{Index, IndexMut}, ptr};
 
 use crate::{prelude::FastIterator, FastArray};
 
@@ -215,13 +215,15 @@ impl<T: Clone> FastMatrix<T> {
         };
     
         if pointer.is_null() {
-            handle_alloc_error(layout);
+            panic!("FastMatrix allocation failed!");
         }
+
+        // println!("Allocating FastMatrix at {:p} (size: {})", pointer, rows*columns);
     
         for i in 0..rows*columns {
-            unsafe { *pointer.add(i) = fill_value.clone() }
+            unsafe { pointer.add(i).write(fill_value.clone()) }
         }
-    
+        // println!("mnmn");
         FastMatrix { pointer, rows, columns }
     }
 
@@ -256,15 +258,17 @@ impl<T: Clone> FastMatrix<T> {
     /// turns [`FastMatrix`] into nested [`FastArray`]s.
     pub fn into_nested_arrays(self) -> FastArray<FastArray<T>> {
         let mut fast_arr_outer = unsafe { FastArray::new_empty(self.rows) };
-
+        
         for i in 0..self.rows {
             fast_arr_outer[i] = self.get_row(i);
+            // println!("xxx4");
         }
 
         fast_arr_outer
     }
 
     pub fn into_fast_iter_arrays(self) -> FastIterator<FastArray<T>> {
+        // println!("xxx3");
         self.into_nested_arrays().into_fast_iterator()
     }
 }
@@ -347,6 +351,7 @@ impl<T> Index<(usize, usize)> for FastMatrix<T> {
     type Output = T;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
+        // println!("xxx6");
         assert!(index.0 < self.rows && index.1 < self.columns);
         unsafe { &*self.pointer.add(index.0 * self.columns + index.1) }
     }
@@ -370,3 +375,18 @@ impl<T> IntoIterator for FastMatrix<T> {
     }
 }
 
+impl<T> Drop for FastMatrix<T> {
+    fn drop(&mut self) {
+        // println!("Dropping FastMatrix at {:p} (size: {} x {})", self.pointer, self.rows, self.columns);
+        if !self.pointer.is_null() {
+            let size = self.rows * self.columns;
+            let layout = Layout::array::<T>(size).expect("Failed to create layout");
+
+            unsafe {
+                // println!("Deallocating memory at {:p} (size: {})", self.pointer, size);
+                std::alloc::dealloc(self.pointer as *mut u8, layout);
+                self.pointer = std::ptr::null_mut(); // Prevent double free
+            }
+        }
+    }
+}

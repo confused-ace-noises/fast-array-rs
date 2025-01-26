@@ -57,6 +57,25 @@
 // //     });
 // // }
 
-// criterion_group!(benches, bench_fastarray);
-// criterion_main!(benches);
-fn main() {}
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fast_collections::{fast_matrix, prelude::{IntoFastArray, IntoFastMatrix}, FastMatrix};
+
+fn bench_fast_matrix(c: &mut Criterion) {
+    c.bench_function("FastMatrix demo bench", |b| {
+        println!("xxx1");
+        b.iter(|| {
+            let fast_matrix: FastMatrix<u32> = fast_matrix!(6; 250; 250);
+            println!("xxx2");
+            let x: FastMatrix<u32> = fast_matrix.into_fast_iter_arrays().map(|mut x| {x.simd_add_8_lanes(5); x}).into_fast_matrix(250, 250);
+
+            // let x = black_box(5);
+
+            // println!("{}", x)
+        });
+    });
+}
+
+criterion_group!(benches, bench_fast_matrix);
+criterion_main!(benches);
+// fn main() {}
+

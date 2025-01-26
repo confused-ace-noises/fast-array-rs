@@ -241,6 +241,7 @@ impl<T: Clone> FastMatrix<T> {
     /// assert_eq!(fast_matrix.get_row(0), fast_arr!(1,2,3));
     /// ```
     pub fn get_row(&self, row: usize) -> FastArray<T> {
+        // println!("xxx5");
         assert!(self.rows > row, "FastMatrix: tried to index out of bounds.");
         let func = |index| (&self[(row, index)]).clone();
         unsafe { FastArray::new_func_unchecked(self.columns, func) }
@@ -401,5 +402,54 @@ impl<T: Clone> From<Vec<Vec<T>>> for FastMatrix<T> {
         }
 
         fast_matrix
+    }
+}
+
+pub trait IntoFastMatrix<T> {
+    fn into_fast_matrix(self, rows: usize, columns: usize) -> FastMatrix<T>;
+}
+
+impl<T, I: ExactSizeIterator<Item = FastArray<T>>, >  IntoFastMatrix<T> for I {
+    // fn into_fast_matrix(self, rows: usize, columns: usize) -> FastMatrix<T> {
+    //     let mut first = true;
+
+    //     let out_len = self.len();
+
+    //     let mut len_inner = 0;
+
+    //     let mut flat = self.map(|x| {if first { first = false; len_inner = x.len(); x.into_fast_iterator() } else { assert_eq!(len_inner, x.len(), "all rows must have equal sizes!"); x.into_fast_iterator() }}).flatten();
+        
+    //     let len = out_len*len_inner;
+
+    //     assert_eq!(len, rows*columns, "the length of the iterator and the product of the number of the rows and columns of the matrix must be equal!");
+
+
+    //     let func = |_| {
+    //         flat.next().unwrap()
+    //     };
+
+    //     unsafe { FastMatrix::new_func_unchecked(rows, columns, func) }
+    // }
+
+    fn into_fast_matrix(mut self, rows: usize, columns: usize) -> FastMatrix<T> {
+        let out_len = self.len();
+    
+        // Ensure the iterator is not empty before taking the first element
+        let first_row = self.next().expect("Matrix must have at least one row!");
+        let len_inner = first_row.len();
+    
+        // Ensure all rows have the same length
+        let mut flat = first_row.into_fast_iterator()
+            .chain(self.flat_map(|row| {
+                assert_eq!(row.len(), len_inner, "All rows must have the same length!");
+                row.into_fast_iterator()
+            }));
+    
+        let len = out_len * len_inner;
+        assert_eq!(len, rows * columns, "Matrix dimensions mismatch: expected {} elements but got {}!", rows * columns, len);
+    
+        let func = |_| flat.next().expect("Iterator ran out of elements unexpectedly!");
+    
+        unsafe { FastMatrix::new_func_unchecked(rows, columns, func) }
     }
 }
